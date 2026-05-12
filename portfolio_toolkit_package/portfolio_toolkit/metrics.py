@@ -86,8 +86,12 @@ def evaluate_portfolio(returns: ArrayLike, excess_returns: ArrayLike, freq: int 
     """
     r = _to_series(returns, name="portfolio_returns")
     er = _to_series(excess_returns, name = "portfolio_excess_returns")
+
+    common_index  = r.index.intersection(er.index)
+    r = r.loc[common_index]
+    er = er.loc[common_index]
     
-    if r.empty:
+    if r.empty or er.empty:
         return {
             "Annual Excess Return": np.nan,
             "Annual Volatility": np.nan,
@@ -97,15 +101,18 @@ def evaluate_portfolio(returns: ArrayLike, excess_returns: ArrayLike, freq: int 
             "Sortino Ratio": np.nan,
             "Calmar Ratio": np.nan,
         }
-
+    
+    annual_return = float(r.mean() * freq)
     annual_excess_return = float(er.mean() * freq)
+    
     annual_volatility = float(r.std(ddof=1) * np.sqrt(freq))
     annual_downside_deviation = downside_deviation(r, freq=freq, annualize=True)
     mdd = max_drawdown(r)
 
     sharpe = np.nan if annual_volatility == 0 else annual_excess_return / annual_volatility
     sortino = np.nan if annual_downside_deviation == 0 else annual_excess_return / annual_downside_deviation
-    calmar = np.nan if mdd == 0 else annual_excess_return / abs(mdd)
+    
+    calmar = np.nan if mdd == 0 else annual_return / abs(mdd)
 
     return {
         "Annual Excess Return": annual_excess_return,
