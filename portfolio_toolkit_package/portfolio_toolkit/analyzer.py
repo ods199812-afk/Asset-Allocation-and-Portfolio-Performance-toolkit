@@ -217,15 +217,15 @@ class PortfolioAnalyzer:
         if objective == "sharpe":
             mu = self.excess_returns.mean().values
             cov = self.raw_returns.cov().values
-            ret = portfolio_excess_return(weights, mu)
-            vol = portfolio_volatility(weights, cov)
+            ret = portfolio_excess_return(w, mu)
+            vol = portfolio_volatility(w, cov)
             return 1e6 if vol == 0 else -ret / vol
 
         annual_excess_return = port_excess_returns.mean() * self.freq
         annual_raw_return = port_raw_returns.mean() * self.freq
         
         if objective == "sortino":
-            downside_returns = np.minimum(port_returns, 0.0)
+            downside_returns = np.minimum(port_raw_returns, 0.0)
             downside_dev = np.sqrt(np.mean(downside_returns**2)) * np.sqrt(self.freq)
             return 1e6 if downside_dev == 0 else -annual_excess_return / downside_dev
 
