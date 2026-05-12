@@ -193,16 +193,16 @@ class PortfolioAnalyzer:
         return w
 
     def _negative_objective(self, weights, objective: str) -> float:
-        port_returns = self.portfolio_returns(weights)
+        port_returns = self.portfolio_excess_returns(weights)
 
         if objective == "sharpe":
             mu = self.excess_returns.mean().values
-            cov = self.excess_returns.cov().values
+            cov = self.raw_returns.cov().values
             ret = portfolio_excess_return(weights, mu)
             vol = portfolio_volatility(weights, cov)
             return 1e6 if vol == 0 else -ret / vol
 
-        annual_return = port_returns.mean() * self.freq
+        annual_return = port_excess_returns.mean() * self.freq
 
         if objective == "sortino":
             downside_returns = np.minimum(port_returns, 0.0)
