@@ -52,7 +52,7 @@ class PortfolioAnalyzer:
         elif isinstance(risk_free, (int, float)):
             self.risk_free = float(risk_free)
             self.excess_returns = self.raw_returns.copy() - self.risk_free 
-        elif instance(risk_free, pd.Series):
+        elif isinstance(risk_free, pd.Series):
             rf = pd.Series(risk_free).astype(float)
             aligned_returns, aligned_rf = self.raw_returns.align(rf, axis=0, join="inner")
             self.risk_free = aligned_rf
