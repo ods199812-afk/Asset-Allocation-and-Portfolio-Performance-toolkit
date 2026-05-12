@@ -42,20 +42,22 @@ class PortfolioAnalyzer:
         Annualization frequency. Use 12 for monthly data, 252 for daily data.
     """
 
-    def __init__(self, returns, risk_free: Optional[pd.Series] = None, freq: int = 12):
+    def __init__(self, returns, risk_free: Optional[Union[float, int, pd.Series]] = None, freq: int = 12):
         self.raw_returns = _to_dataframe(returns, name="asset_returns")
         self.freq = freq
 
         if risk_free is None:
             self.risk_free = None
             self.excess_returns = self.raw_returns.copy()
-        else:
+        elif isinstance(risk_free, (int, float)):
+            self.risk_free = float(risk_free)
+            self.excess_returns = self.raw_returns.copy() - self.risk_free 
+        elif instance(risk_free, pd.Series):
             rf = pd.Series(risk_free).astype(float)
             aligned_returns, aligned_rf = self.raw_returns.align(rf, axis=0, join="inner")
             self.risk_free = aligned_rf
             self.excess_returns = aligned_returns.sub(aligned_rf, axis=0)
-
-        self.excess_returns = self.excess_returns.dropna(how="any")
+            self.excess_returns = self.excess_returns.dropna(how="any")
         if self.excess_returns.empty:
             raise ValueError("No valid return observations after alignment/dropna.")
 
@@ -67,12 +69,16 @@ class PortfolioAnalyzer:
         return mu * self.freq if annualize else mu
 
     def covariance(self, annualize: bool = False) -> pd.DataFrame:
-        cov = self.excess_returns.cov()
+        cov = self.raw_returns.cov()
         return cov * self.freq if annualize else cov
 
-    def portfolio_returns(self, weights) -> pd.Series:
+    def portfolio_excess_returns(self, weights) -> pd.Series:
         w = self._validate_weights(weights)
         return self.excess_returns @ w
+
+    def portfolio_raw_returns(self, weights) -> pd.Series:
+        w = self._validate_weights(weights)
+        return self.raw_returns @ w 
 
     def evaluate(self, weights=None) -> Dict[str, float]:
         """Evaluate a weighted portfolio. Default is equal weight."""
