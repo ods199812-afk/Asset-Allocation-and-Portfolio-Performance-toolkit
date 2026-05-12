@@ -65,7 +65,7 @@ class PortfolioAnalyzer:
         self.n_assets = len(self.assets)
 
     def mean_returns(self, annualize: bool = False) -> pd.Series:
-        mu = self.excess_returns.mean()
+        mu = self.raw_returns.mean()
         return mu * self.freq if annualize else mu
 
     def covariance(self, annualize: bool = False) -> pd.DataFrame:
@@ -74,7 +74,7 @@ class PortfolioAnalyzer:
 
     def portfolio_excess_returns(self, weights) -> pd.Series:
         w = self._validate_weights(weights)
-        return self.excess_returns @ w
+        return self.raw_returns @ w - self.risk_free
 
     def portfolio_raw_returns(self, weights) -> pd.Series:
         w = self._validate_weights(weights)
@@ -84,8 +84,9 @@ class PortfolioAnalyzer:
         """Evaluate a weighted portfolio. Default is equal weight."""
         if weights is None:
             weights = self.equal_weights().values
-        port_returns = self.portfolio_returns(weights)
-        return evaluate_portfolio(port_returns, freq=self.freq)
+        port_excess_returns = self.portfolio_excess_returns(weights)
+        port_raw_returns = self.portfolio_raw_returns(weights)
+        return evaluate_portfolio(port_raw_returns, port_excess_returns, freq=self.freq)
 
     def equal_weights(self) -> pd.Series:
         return pd.Series(np.repeat(1 / self.n_assets, self.n_assets), index=self.assets, name="weight")
