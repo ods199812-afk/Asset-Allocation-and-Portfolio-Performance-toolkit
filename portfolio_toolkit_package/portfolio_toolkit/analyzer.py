@@ -231,6 +231,6 @@ class PortfolioAnalyzer:
 
         if objective == "calmar":
             mdd = max_drawdown(port_raw_returns)
-            return 1e6 if mdd == 0 else -annual_return / abs(mdd)
+            return 1e6 if mdd == 0 else -annual_raw_return / abs(mdd)
 
         raise ValueError(f"Unknown objective: {objective}")
