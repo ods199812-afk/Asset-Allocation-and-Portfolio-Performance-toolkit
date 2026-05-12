@@ -76,7 +76,7 @@ def downside_deviation(returns: ArrayLike, freq: int = 12, annualize: bool = Tru
     return dd * np.sqrt(freq) if annualize else dd
 
 
-def evaluate_portfolio(returns: ArrayLike, freq: int = 12) -> Dict[str, float]:
+def evaluate_portfolio(returns: ArrayLike, excess_returns: ArrayLike, freq: int = 12) -> Dict[str, float]:
     """
     Evaluate one portfolio return series.
 
@@ -85,6 +85,8 @@ def evaluate_portfolio(returns: ArrayLike, freq: int = 12) -> Dict[str, float]:
     monthly risk-free rate, pass ``portfolio_return - risk_free_rate``.
     """
     r = _to_series(returns, name="portfolio_returns")
+    er = _to_series(excess_returns, name = "portfolio_excess_returns")
+    
     if r.empty:
         return {
             "Annual Excess Return": np.nan,
@@ -96,7 +98,7 @@ def evaluate_portfolio(returns: ArrayLike, freq: int = 12) -> Dict[str, float]:
             "Calmar Ratio": np.nan,
         }
 
-    annual_excess_return = float(r.mean() * freq)
+    annual_excess_return = float(er.mean() * freq)
     annual_volatility = float(r.std(ddof=1) * np.sqrt(freq))
     annual_downside_deviation = downside_deviation(r, freq=freq, annualize=True)
     mdd = max_drawdown(r)
