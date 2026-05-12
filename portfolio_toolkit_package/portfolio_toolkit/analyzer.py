@@ -83,7 +83,7 @@ class PortfolioAnalyzer:
 
     def portfolio_excess_returns(self, weights) -> pd.Series:
         w = self._validate_weights(weights)
-        return self.raw_excess_returns @ w
+        return self.excess_returns @ w
 
     def portfolio_raw_returns(self, weights) -> pd.Series:
         w = self._validate_weights(weights)
@@ -95,6 +95,7 @@ class PortfolioAnalyzer:
             weights = self.equal_weights().values
         port_excess_returns = self.portfolio_excess_returns(weights)
         port_raw_returns = self.portfolio_raw_returns(weights)
+        
         return evaluate_portfolio(port_raw_returns, port_excess_returns, freq=self.freq)
 
     def equal_weights(self) -> pd.Series:
