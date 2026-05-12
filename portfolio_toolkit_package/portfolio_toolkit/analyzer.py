@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -54,18 +54,27 @@ class PortfolioAnalyzer:
             self.excess_returns = self.raw_returns.copy() - self.risk_free 
         elif isinstance(risk_free, pd.Series):
             rf = pd.Series(risk_free).astype(float)
-            aligned_returns, aligned_rf = self.raw_returns.align(rf, axis=0, join="inner")
-            self.risk_free = aligned_rf
-            self.excess_returns = aligned_returns.sub(aligned_rf, axis=0)
-            self.excess_returns = self.excess_returns.dropna(how="any")
+
+            self.raw_returns.index = pd.to_datetime(self.raw_returns.index).normalize()
+            rf.index = pd.to_datetime(rf.index).normalize()
+
+            aligned_returns, aligned_rf = self.raw_returns.align(
+                rf,
+                axis=0,
+                join="inner"
+            )
+            self.raw_returns = aligned_returns.dropna(how="any")
+            self.risk_free = aligned_rf.loc[self.raw_returns.index]
+            self.excess_returns = self.raw_returns.sub(self.risk_free, axis=0)
         if self.excess_returns.empty:
             raise ValueError("No valid return observations after alignment/dropna.")
 
         self.assets = list(self.excess_returns.columns)
         self.n_assets = len(self.assets)
 
-    def mean_returns(self, annualize: bool = False) -> pd.Series:
-        mu = self.raw_returns.mean()
+    def mean_returns(self, annualize: bool = False, use_excess: bool = False) -> pd.Series:
+        data = self.excess_returns if use_excess else self.raw_returns
+        mu = data.mean()
         return mu * self.freq if annualize else mu
 
     def covariance(self, annualize: bool = False) -> pd.DataFrame:
@@ -74,7 +83,7 @@ class PortfolioAnalyzer:
 
     def portfolio_excess_returns(self, weights) -> pd.Series:
         w = self._validate_weights(weights)
-        return self.raw_returns @ w - self.risk_free
+        return self.raw_excess_returns @ w
 
     def portfolio_raw_returns(self, weights) -> pd.Series:
         w = self._validate_weights(weights)
@@ -135,13 +144,19 @@ class PortfolioAnalyzer:
         )
 
         weights = pd.Series(result.x, index=self.assets, name=f"{objective}_weight")
-        port_returns = self.portfolio_returns(weights.values)
-        metrics = evaluate_portfolio(port_returns, freq=self.freq)
+        port_raw_returns = self.portfolio_raw_returns(weights.values)
+        port_excess_returns = self.portfolio_excess_returns(weights.values)
+        
+        metrics = evaluate_portfolio(
+            port_raw_returns,
+            port_excess_returns,
+            freq=self.freq
+        )
 
         return OptimizationResult(
             objective=objective,
             weights=weights,
-            portfolio_returns=port_returns,
+            portfolio_returns=port_raw_returns,
             metrics=metrics,
             success=bool(result.success),
             message=str(result.message),
@@ -193,8 +208,11 @@ class PortfolioAnalyzer:
         return w
 
     def _negative_objective(self, weights, objective: str) -> float:
-        port_returns = self.portfolio_excess_returns(weights)
-
+        w = self._validate_weights(weights)
+        
+        port_raw_returns = self.portfolio_raw_returns(w)
+        port_excess_returns = self.portfolio_excess_returns(w)
+        
         if objective == "sharpe":
             mu = self.excess_returns.mean().values
             cov = self.raw_returns.cov().values
@@ -202,15 +220,16 @@ class PortfolioAnalyzer:
             vol = portfolio_volatility(weights, cov)
             return 1e6 if vol == 0 else -ret / vol
 
-        annual_return = port_excess_returns.mean() * self.freq
-
+        annual_excess_return = port_excess_returns.mean() * self.freq
+        annual_raw_return = port_raw_returens.mean() * self.freq
+        
         if objective == "sortino":
             downside_returns = np.minimum(port_returns, 0.0)
             downside_dev = np.sqrt(np.mean(downside_returns**2)) * np.sqrt(self.freq)
-            return 1e6 if downside_dev == 0 else -annual_return / downside_dev
+            return 1e6 if downside_dev == 0 else -annual_excess_return / downside_dev
 
         if objective == "calmar":
-            mdd = max_drawdown(port_returns)
+            mdd = max_drawdown(port_raw_returns)
             return 1e6 if mdd == 0 else -annual_return / abs(mdd)
 
         raise ValueError(f"Unknown objective: {objective}")
