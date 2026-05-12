@@ -222,7 +222,7 @@ class PortfolioAnalyzer:
             return 1e6 if vol == 0 else -ret / vol
 
         annual_excess_return = port_excess_returns.mean() * self.freq
-        annual_raw_return = port_raw_returens.mean() * self.freq
+        annual_raw_return = port_raw_returns.mean() * self.freq
         
         if objective == "sortino":
             downside_returns = np.minimum(port_returns, 0.0)
